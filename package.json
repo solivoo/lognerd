@@ -8,8 +8,9 @@
     "build": "tsc",
       "prepublishOnly": "pnpm run build",
     "dev": "tsc --watch",
-    "test": "ts-node test-logger.ts",
-    "test:env": "ts-node test-env.ts"
+      "test": "ts-node test-logger.ts",
+      "test:env": "ts-node test-env.ts",
+      "test:singleton": "ts-node test-singleton.ts"
   },
   "keywords": [
     "logger",
@@ -35,6 +36,9 @@
   },
   "peerDependencies": {
     "typescript": "^5.0.0"
+  },
+  "engines": {
+    "node": ">=16.0.0"
   },
   "files": [
     "dist",

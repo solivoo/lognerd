@@ -16,15 +16,44 @@ npm install lognerd
 
 ## 📖 Uso Básico
 
+### Uso Directo (Recomendado - Patrón Singleton)
+
+Puedes usar el logger directamente sin necesidad de crear una instancia:
+
+```typescript
+import { info, warn, error, debug } from 'lognerd';
+
+// Uso directo - el logger se configura automáticamente desde variables de entorno
+info('Aplicación iniciada');
+error('Error crítico', { code: 500, message: 'Error de servidor' });
+warn('Advertencia: conexión lenta');
+debug('Información de debug', { userId: 123 });
+```
+
+O usando el objeto logger:
+
+```typescript
+import { logger } from 'lognerd';
+
+logger.info('Aplicación iniciada');
+logger.error('Error crítico', { code: 500 });
+logger.warn('Advertencia');
+logger.debug('Debug info');
+```
+
+### Uso con Instancia Personalizada
+
+Si necesitas múltiples instancias con configuraciones diferentes:
+
 ```typescript
 import { createLogger } from 'lognerd';
 
-const logger = createLogger();
+const customLogger = createLogger({
+  level: 'DEBUG',
+  filePath: './logs/custom.log',
+});
 
-logger.info('Aplicación iniciada');
-logger.error('Error crítico', { code: 500, message: 'Error de servidor' });
-logger.warn('Advertencia: conexión lenta');
-logger.debug('Información de debug', { userId: 123 });
+customLogger.info('Mensaje con logger personalizado');
 ```
 
 ## ⚙️ Configuración
@@ -135,9 +164,10 @@ NODE_ENV=production LOGNERD_LEVEL=WARN
 ### Ejemplo Completo
 
 ```typescript
-import { createLogger } from 'lognerd';
+import { info, warn, error, debug, configureLogger } from 'lognerd';
 
-const logger = createLogger({
+// Configurar el logger (opcional, se configura automáticamente desde variables de entorno)
+configureLogger({
   level: process.env.NODE_ENV === 'production' ? 'WARN' : 'DEBUG',
   environment: process.env.NODE_ENV || 'development',
   filePath: './logs/app.log',
@@ -146,39 +176,71 @@ const logger = createLogger({
 // En desarrollo: se muestra en consola con colores y se guarda en archivo
 // En producción: solo se guarda en archivo
 
-logger.info('Servidor iniciado en puerto 3000');
-logger.debug('Variables de entorno cargadas', { env: process.env.NODE_ENV });
+info('Servidor iniciado en puerto 3000');
+debug('Variables de entorno cargadas', { env: process.env.NODE_ENV });
 
 try {
   // Tu código aquí
-  logger.info('Operación exitosa');
-} catch (error) {
-  logger.error('Error en operación', { error: error.message, stack: error.stack });
+  info('Operación exitosa');
+} catch (err) {
+  error('Error en operación', { error: err.message, stack: err.stack });
 }
 ```
 
 ### Actualizar Configuración en Tiempo de Ejecución
 
 ```typescript
-const logger = createLogger();
+import { configureLogger } from 'lognerd';
 
-// Cambiar el nivel de log dinámicamente
-logger.updateConfig({ level: 'ERROR' });
+// Cambiar el nivel de log dinámicamente del singleton
+configureLogger({ level: 'ERROR' });
 ```
 
 ## 🔧 API
 
+### Funciones Directas (Singleton)
+
+El paquete exporta funciones directas que usan una instancia singleton del logger:
+
+```typescript
+import { info, warn, error, debug, logger, configureLogger } from 'lognerd';
+
+// Funciones directas
+info('Mensaje informativo');
+warn('Advertencia');
+error('Error', { code: 500 });
+debug('Debug', { data: 'test' });
+
+// Objeto logger (mismo singleton)
+logger.info('Mensaje');
+logger.warn('Advertencia');
+
+// Configurar el singleton
+configureLogger({ level: 'WARN', filePath: './logs/custom.log' });
+```
+
 ### `createLogger(config?: Partial<LoggerConfig>): LoggerService`
 
-Crea una instancia del logger con la configuración proporcionada.
+Crea una nueva instancia del logger con configuración personalizada (útil para múltiples loggers).
 
-### Métodos del Logger
+### Métodos Disponibles
 
-- `logger.error(message: string, data?: unknown): void` - Log de error
-- `logger.warn(message: string, data?: unknown): void` - Log de advertencia
+**Funciones directas (singleton):**
+- `info(message: string, data?: unknown): void` - Log informativo
+- `warn(message: string, data?: unknown): void` - Log de advertencia
+- `error(message: string, data?: unknown): void` - Log de error
+- `debug(message: string, data?: unknown): void` - Log de debug
+- `configureLogger(config: Partial<LoggerConfig>): void` - Actualizar configuración del singleton
+
+**Objeto logger (singleton):**
 - `logger.info(message: string, data?: unknown): void` - Log informativo
+- `logger.warn(message: string, data?: unknown): void` - Log de advertencia
+- `logger.error(message: string, data?: unknown): void` - Log de error
 - `logger.debug(message: string, data?: unknown): void` - Log de debug
-- `logger.updateConfig(newConfig: Partial<LoggerConfig>): void` - Actualizar configuración
+- `logger.updateConfig(config: Partial<LoggerConfig>): void` - Actualizar configuración
+
+**Instancias personalizadas:**
+- `logger.updateConfig(newConfig: Partial<LoggerConfig>): void` - Actualizar configuración (en instancias creadas con `createLogger`)
 
 ## 📦 Estructura de Archivos de Log
 
