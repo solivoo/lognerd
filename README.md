@@ -1,0 +1,204 @@
+# lognerd
+
+Sistema de logging con colores y escritura a archivo para Node.js. Desarrollado con TypeScript y diseñado para ser fácil de usar y configurar.
+
+## 🚀 Instalación
+
+```bash
+pnpm add lognerd
+```
+
+o con npm:
+
+```bash
+npm install lognerd
+```
+
+## 📖 Uso Básico
+
+```typescript
+import { createLogger } from 'lognerd';
+
+const logger = createLogger();
+
+logger.info('Aplicación iniciada');
+logger.error('Error crítico', { code: 500, message: 'Error de servidor' });
+logger.warn('Advertencia: conexión lenta');
+logger.debug('Información de debug', { userId: 123 });
+```
+
+## ⚙️ Configuración
+
+### Configuración mediante Variables de Entorno (Recomendado)
+
+Puedes configurar lognerd completamente mediante variables de entorno. Esto es ideal para Vite, Next.js, y otros entornos.
+
+**⚠️ Importante para Vite:** Vite solo expone variables que comienzan con `VITE_` al código del cliente. Para Vite, usa el prefijo `VITE_LOGNERD_*`.
+
+**Variables de entorno disponibles:**
+
+| Variable (Node.js/Next.js) | Variable (Vite) | Descripción | Valores | Por defecto |
+|----------------------------|-----------------|-------------|---------|-------------|
+| `LOGNERD_LEVEL` | `VITE_LOGNERD_LEVEL` | Nivel mínimo de log | `DEBUG`, `INFO`, `WARN`, `ERROR` | `INFO` |
+| `LOGNERD_ENVIRONMENT` | `VITE_LOGNERD_ENVIRONMENT` | Entorno de ejecución | `development`, `production` | `development` |
+| `NODE_ENV` | `NODE_ENV` | También se puede usar (compatible) | `development`, `production` | - |
+| `LOGNERD_ENABLE_CONSOLE` | `VITE_LOGNERD_ENABLE_CONSOLE` | Habilitar salida en consola | `true`, `false`, `1`, `0` | `true` |
+| `LOGNERD_ENABLE_FILE` | `VITE_LOGNERD_ENABLE_FILE` | Habilitar escritura en archivo | `true`, `false`, `1`, `0` | `true` |
+| `LOGNERD_FILE_PATH` | `VITE_LOGNERD_FILE_PATH` | Ruta del archivo de log | Ruta relativa o absoluta | `./logs/app.log` |
+| `LOGNERD_MAX_FILE_SIZE` | `VITE_LOGNERD_MAX_FILE_SIZE` | Tamaño máximo del archivo en MB | Número entero | `10` |
+| `LOGNERD_MAX_FILES` | `VITE_LOGNERD_MAX_FILES` | Número máximo de archivos rotados | Número entero | `5` |
+
+**Ejemplo para Node.js/Next.js:**
+```bash
+# .env
+LOGNERD_LEVEL=INFO
+LOGNERD_ENVIRONMENT=development
+LOGNERD_ENABLE_CONSOLE=true
+LOGNERD_ENABLE_FILE=true
+LOGNERD_FILE_PATH=./logs/app.log
+LOGNERD_MAX_FILE_SIZE=10
+LOGNERD_MAX_FILES=5
+```
+
+**Ejemplo para Vite:**
+```bash
+# .env
+VITE_LOGNERD_LEVEL=INFO
+VITE_LOGNERD_ENVIRONMENT=development
+VITE_LOGNERD_ENABLE_CONSOLE=true
+VITE_LOGNERD_ENABLE_FILE=true
+VITE_LOGNERD_FILE_PATH=./logs/app.log
+VITE_LOGNERD_MAX_FILE_SIZE=10
+VITE_LOGNERD_MAX_FILES=5
+```
+
+**Ejemplo para producción (Vite):**
+```bash
+# .env.production
+VITE_LOGNERD_LEVEL=WARN
+VITE_LOGNERD_ENVIRONMENT=production
+VITE_LOGNERD_FILE_PATH=./logs/production.log
+VITE_LOGNERD_MAX_FILE_SIZE=50
+VITE_LOGNERD_MAX_FILES=10
+```
+
+### Configuración mediante Código
+
+También puedes configurar el logger mediante código TypeScript:
+
+```typescript
+import { createLogger } from 'lognerd';
+
+const logger = createLogger({
+  level: 'DEBUG', // Nivel mínimo de log: 'DEBUG' | 'INFO' | 'WARN' | 'ERROR'
+  environment: 'development', // 'development' | 'production'
+  enableConsole: true, // Habilitar salida en consola
+  enableFile: true, // Habilitar escritura en archivo
+  filePath: './logs/app.log', // Ruta del archivo de log
+  maxFileSize: 10, // Tamaño máximo del archivo en MB (default: 10)
+  maxFiles: 5, // Número máximo de archivos de log rotados (default: 5)
+});
+```
+
+**Nota:** La configuración mediante código tiene prioridad sobre las variables de entorno. El orden de prioridad es: `código > variables de entorno > valores por defecto`.
+
+### Configuración para Producción
+
+En producción, la consola se deshabilita automáticamente pero los logs se siguen escribiendo en archivo:
+
+```typescript
+const logger = createLogger({
+  environment: 'production', // Automáticamente deshabilita consola
+  level: 'WARN', // Solo logs de WARN y ERROR en producción
+  filePath: './logs/production.log',
+});
+```
+
+O simplemente usando variables de entorno:
+```bash
+NODE_ENV=production LOGNERD_LEVEL=WARN
+```
+
+## 🎨 Características
+
+- ✅ **Niveles de log**: ERROR, WARN, INFO, DEBUG
+- ✅ **Colores en consola** para desarrollo (rojo para ERROR, amarillo para WARN, cyan para INFO, magenta para DEBUG)
+- ✅ **Escritura automática a archivo** (siempre activa, incluso en producción)
+- ✅ **Deshabilitación automática de consola en producción**
+- ✅ **Rotación automática de archivos** cuando alcanzan el tamaño máximo
+- ✅ **Limpieza automática** de archivos antiguos
+- ✅ **TypeScript** con tipos completos
+- ✅ **Sin dependencias externas** (solo usa módulos nativos de Node.js)
+
+## 📝 Ejemplos
+
+### Ejemplo Completo
+
+```typescript
+import { createLogger } from 'lognerd';
+
+const logger = createLogger({
+  level: process.env.NODE_ENV === 'production' ? 'WARN' : 'DEBUG',
+  environment: process.env.NODE_ENV || 'development',
+  filePath: './logs/app.log',
+});
+
+// En desarrollo: se muestra en consola con colores y se guarda en archivo
+// En producción: solo se guarda en archivo
+
+logger.info('Servidor iniciado en puerto 3000');
+logger.debug('Variables de entorno cargadas', { env: process.env.NODE_ENV });
+
+try {
+  // Tu código aquí
+  logger.info('Operación exitosa');
+} catch (error) {
+  logger.error('Error en operación', { error: error.message, stack: error.stack });
+}
+```
+
+### Actualizar Configuración en Tiempo de Ejecución
+
+```typescript
+const logger = createLogger();
+
+// Cambiar el nivel de log dinámicamente
+logger.updateConfig({ level: 'ERROR' });
+```
+
+## 🔧 API
+
+### `createLogger(config?: Partial<LoggerConfig>): LoggerService`
+
+Crea una instancia del logger con la configuración proporcionada.
+
+### Métodos del Logger
+
+- `logger.error(message: string, data?: unknown): void` - Log de error
+- `logger.warn(message: string, data?: unknown): void` - Log de advertencia
+- `logger.info(message: string, data?: unknown): void` - Log informativo
+- `logger.debug(message: string, data?: unknown): void` - Log de debug
+- `logger.updateConfig(newConfig: Partial<LoggerConfig>): void` - Actualizar configuración
+
+## 📦 Estructura de Archivos de Log
+
+Los logs se guardan en el formato:
+
+```
+2024-01-15T10:30:45.123Z [ERROR] Error crítico | Data: {"code":500}
+2024-01-15T10:30:46.456Z [WARN] Advertencia | Data: {"timeout":5000}
+2024-01-15T10:30:47.789Z [INFO] Operación completada
+```
+
+## 🔄 Rotación de Archivos
+
+Cuando un archivo de log alcanza el tamaño máximo configurado (`maxFileSize`), se renombra automáticamente con un timestamp y se crea un nuevo archivo. Los archivos antiguos se eliminan automáticamente cuando exceden el número máximo configurado (`maxFiles`).
+
+## 📄 Licencia
+
+MIT
+
+## 👤 Autor
+
+Sergio Olivo O
+

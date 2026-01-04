@@ -1,0 +1,35 @@
+{
+  "name": "lognerd",
+  "version": "1.0.0",
+  "description": "Sistema de logging con colores y escritura a archivo",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+      "prepublishOnly": "pnpm run build",
+    "dev": "tsc --watch",
+    "test": "ts-node test-logger.ts",
+    "test:env": "ts-node test-env.ts"
+  },
+  "keywords": [
+    "logger",
+    "logging",
+    "log",
+    "file-logger",
+    "lognerd"
+  ],
+  "author": "solivoo",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.0.0"
+  },
+  "peerDependencies": {
+    "typescript": "^5.0.0"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ]
+}
