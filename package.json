@@ -20,6 +20,14 @@
   ],
   "author": "solivoo",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/solivoo/lognerd.git"
+  },
+  "homepage": "https://github.com/solivoo/lognerd#readme",
+  "bugs": {
+    "url": "https://github.com/solivoo/lognerd/issues"
+  },
   "devDependencies": {
     "@types/node": "^20.0.0",
     "ts-node": "^10.9.2",
