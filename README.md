@@ -1,6 +1,6 @@
 # lognerd
 
-Sistema de logging con colores y escritura a archivo para Node.js. Desarrollado con TypeScript y diseñado para ser fácil de usar y configurar.
+Sistema de logging con colores y escritura a archivo para **Node.js (Backend)** y **Navegador (Frontend)**. Desarrollado con TypeScript y diseñado para ser fácil de usar y configurar. Compatible con Vite, Next.js y otros entornos.
 
 ## 🚀 Instalación
 
@@ -68,14 +68,38 @@ Puedes configurar lognerd completamente mediante variables de entorno. Esto es i
 
 | Variable (Node.js/Next.js) | Variable (Vite) | Descripción | Valores | Por defecto |
 |----------------------------|-----------------|-------------|---------|-------------|
+| **`LOG_ENVIRONMENT`** | **`VITE_LOG_ENVIRONMENT`** | **Entorno de ejecución (OBLIGATORIO)** | **`B`, `BACKEND`, `C`, `CLIENT`** | **Auto-detecta** |
 | `LOGNERD_LEVEL` | `VITE_LOGNERD_LEVEL` | Nivel mínimo de log | `DEBUG`, `INFO`, `WARN`, `ERROR` | `INFO` |
 | `LOGNERD_ENVIRONMENT` | `VITE_LOGNERD_ENVIRONMENT` | Entorno de ejecución | `development`, `production` | `development` |
 | `NODE_ENV` | `NODE_ENV` | También se puede usar (compatible) | `development`, `production` | - |
 | `LOGNERD_ENABLE_CONSOLE` | `VITE_LOGNERD_ENABLE_CONSOLE` | Habilitar salida en consola | `true`, `false`, `1`, `0` | `true` |
-| `LOGNERD_ENABLE_FILE` | `VITE_LOGNERD_ENABLE_FILE` | Habilitar escritura en archivo | `true`, `false`, `1`, `0` | `true` |
+| `LOGNERD_ENABLE_FILE` | `VITE_LOGNERD_ENABLE_FILE` | Habilitar escritura en archivo | `true`, `false`, `1`, `0` | `true` (solo backend) |
 | `LOGNERD_FILE_PATH` | `VITE_LOGNERD_FILE_PATH` | Ruta del archivo de log | Ruta relativa o absoluta | `./logs/app.log` |
 | `LOGNERD_MAX_FILE_SIZE` | `VITE_LOGNERD_MAX_FILE_SIZE` | Tamaño máximo del archivo en MB | Número entero | `10` |
 | `LOGNERD_MAX_FILES` | `VITE_LOGNERD_MAX_FILES` | Número máximo de archivos rotados | Número entero | `5` |
+
+### ⚠️ LOG_ENVIRONMENT (Importante)
+
+Esta variable determina si el código se ejecuta en **backend** (Node.js) o **client** (navegador):
+
+- **`LOG_ENVIRONMENT=B`** o **`LOG_ENVIRONMENT=BACKEND`**: Para backend (Node.js)
+  - ✅ Permite escritura de archivos
+  - ✅ Usa `fs` y `path` de Node.js
+  - ✅ Escritura de logs en archivos locales
+
+- **`LOG_ENVIRONMENT=C`** o **`LOG_ENVIRONMENT=CLIENT`**: Para cliente (navegador)
+  - ✅ Deshabilita escritura de archivos automáticamente
+  - ✅ Solo muestra logs en consola del navegador
+  - ✅ Compatible con Vite y otros bundlers
+
+**Detección automática:**
+Si no se configura `LOG_ENVIRONMENT`, se detecta automáticamente:
+- Si está en Node.js → `backend`
+- Si está en navegador → `client`
+
+**Mensajes de error claros:**
+- Si `LOG_ENVIRONMENT=B` pero se ejecuta en navegador → Error descriptivo
+- Si `LOG_ENVIRONMENT=C` pero se intenta escribir archivos → Advertencia automática
 
 **Ejemplo para Node.js/Next.js (Backend):**
 ```bash
@@ -100,14 +124,24 @@ VITE_LOGNERD_ENABLE_CONSOLE=true
 # VITE_LOGNERD_ENABLE_FILE se ignora en cliente (siempre false)
 ```
 
-**Ejemplo para producción (Vite):**
+**Ejemplo para producción (Vite - Cliente):**
 ```bash
 # .env.production
+VITE_LOG_ENVIRONMENT=C
 VITE_LOGNERD_LEVEL=WARN
 VITE_LOGNERD_ENVIRONMENT=production
-VITE_LOGNERD_FILE_PATH=./logs/production.log
-VITE_LOGNERD_MAX_FILE_SIZE=50
-VITE_LOGNERD_MAX_FILES=10
+# La escritura de archivos está deshabilitada en cliente
+```
+
+**Ejemplo para producción (Backend):**
+```bash
+# .env.production
+LOG_ENVIRONMENT=B
+LOGNERD_LEVEL=WARN
+LOGNERD_ENVIRONMENT=production
+LOGNERD_FILE_PATH=./logs/production.log
+LOGNERD_MAX_FILE_SIZE=50
+LOGNERD_MAX_FILES=10
 ```
 
 ### Configuración mediante Código
@@ -117,14 +151,24 @@ También puedes configurar el logger mediante código TypeScript:
 ```typescript
 import { createLogger } from 'lognerd';
 
-const logger = createLogger({
+// Para backend
+const backendLogger = createLogger({
+  runtimeEnvironment: 'backend', // o 'client' para navegador
   level: 'DEBUG', // Nivel mínimo de log: 'DEBUG' | 'INFO' | 'WARN' | 'ERROR'
   environment: 'development', // 'development' | 'production'
   enableConsole: true, // Habilitar salida en consola
-  enableFile: true, // Habilitar escritura en archivo
+  enableFile: true, // Habilitar escritura en archivo (solo backend)
   filePath: './logs/app.log', // Ruta del archivo de log
   maxFileSize: 10, // Tamaño máximo del archivo en MB (default: 10)
   maxFiles: 5, // Número máximo de archivos de log rotados (default: 5)
+});
+
+// Para cliente (navegador)
+const clientLogger = createLogger({
+  runtimeEnvironment: 'client',
+  level: 'INFO',
+  enableConsole: true,
+  enableFile: false, // Se deshabilita automáticamente en cliente
 });
 ```
 
@@ -149,24 +193,31 @@ NODE_ENV=production LOGNERD_LEVEL=WARN
 
 ## 🎨 Características
 
+- ✅ **Soporte Backend y Frontend**: Funciona en Node.js y navegador
 - ✅ **Niveles de log**: ERROR, WARN, INFO, DEBUG
 - ✅ **Colores en consola** para desarrollo (rojo para ERROR, amarillo para WARN, cyan para INFO, magenta para DEBUG)
-- ✅ **Escritura automática a archivo** (siempre activa, incluso en producción)
+- ✅ **Escritura automática a archivo** (solo en backend, deshabilitada automáticamente en cliente)
+- ✅ **Detección automática de entorno** (backend/client) o configuración manual con `LOG_ENVIRONMENT`
+- ✅ **Mensajes de error claros** cuando hay configuración incorrecta
 - ✅ **Deshabilitación automática de consola en producción**
-- ✅ **Rotación automática de archivos** cuando alcanzan el tamaño máximo
-- ✅ **Limpieza automática** de archivos antiguos
+- ✅ **Rotación automática de archivos** cuando alcanzan el tamaño máximo (solo backend)
+- ✅ **Limpieza automática** de archivos antiguos (solo backend)
+- ✅ **Patrón Singleton**: Uso directo sin crear instancias
 - ✅ **TypeScript** con tipos completos
-- ✅ **Sin dependencias externas** (solo usa módulos nativos de Node.js)
+- ✅ **Sin dependencias externas** (solo usa módulos nativos)
+- ✅ **Compatible con Vite**: Soporte para variables `VITE_*`
 
 ## 📝 Ejemplos
 
-### Ejemplo Completo
+### Ejemplo Completo (Backend)
 
 ```typescript
 import { info, warn, error, debug, configureLogger } from 'lognerd';
 
 // Configurar el logger (opcional, se configura automáticamente desde variables de entorno)
+// LOG_ENVIRONMENT=B debe estar en .env
 configureLogger({
+  runtimeEnvironment: 'backend',
   level: process.env.NODE_ENV === 'production' ? 'WARN' : 'DEBUG',
   environment: process.env.NODE_ENV || 'development',
   filePath: './logs/app.log',
@@ -183,6 +234,26 @@ try {
   info('Operación exitosa');
 } catch (err) {
   error('Error en operación', { error: err.message, stack: err.stack });
+}
+```
+
+### Ejemplo Completo (Frontend/Vite)
+
+```typescript
+import { info, warn, error, debug } from 'lognerd';
+
+// En .env: VITE_LOG_ENVIRONMENT=C
+// No necesitas configurar nada, se detecta automáticamente
+
+info('Aplicación iniciada');
+debug('Estado de la aplicación', { users: 10, active: true });
+
+try {
+  // Tu código aquí
+  info('Operación exitosa');
+} catch (err) {
+  error('Error en operación', { error: err.message });
+  // Los logs solo se muestran en consola del navegador
 }
 ```
 
@@ -254,6 +325,28 @@ Los logs se guardan en el formato:
 ## 🔄 Rotación de Archivos
 
 Cuando un archivo de log alcanza el tamaño máximo configurado (`maxFileSize`), se renombra automáticamente con un timestamp y se crea un nuevo archivo. Los archivos antiguos se eliminan automáticamente cuando exceden el número máximo configurado (`maxFiles`).
+
+**Nota:** La rotación de archivos solo funciona en **backend** (Node.js). En **cliente** (navegador), la escritura de archivos está deshabilitada.
+
+## 🐛 Solución de Problemas
+
+### Error: "process is not defined"
+- **Causa**: El código se está ejecutando en el navegador sin configurar `LOG_ENVIRONMENT=C`
+- **Solución**: Agrega `VITE_LOG_ENVIRONMENT=C` en tu archivo `.env` para Vite, o `LOG_ENVIRONMENT=C` para otros entornos
+
+### Error: "LOG_ENVIRONMENT está configurado para BACKEND pero se ejecuta en navegador"
+- **Causa**: `LOG_ENVIRONMENT=B` está configurado pero el código corre en el navegador
+- **Solución**: Cambia a `LOG_ENVIRONMENT=C` o `VITE_LOG_ENVIRONMENT=C` en tu `.env`
+
+### Los archivos de log no se crean
+- **Causa**: Estás en cliente (navegador) o `LOG_ENVIRONMENT=C`
+- **Solución**: 
+  - Para backend: Configura `LOG_ENVIRONMENT=B` y asegúrate de tener permisos de escritura
+  - Para cliente: Es normal, los archivos no se pueden crear en el navegador
+
+### Variables de entorno no se leen en Vite
+- **Causa**: Falta el prefijo `VITE_` en las variables
+- **Solución**: Usa `VITE_LOG_ENVIRONMENT`, `VITE_LOGNERD_LEVEL`, etc.
 
 ## 📄 Licencia
 
