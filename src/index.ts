@@ -1,6 +1,6 @@
 import { LoggerService } from './logger/logger.service';
 import { createLoggerConfig } from './logger/logger.config';
-import { LoggerConfig, LogLevel } from './logger/logger.types';
+import { LoggerConfig, LogLevel, RuntimeEnvironment } from './logger/logger.types';
 
 // Instancia singleton del logger
 let loggerInstance: LoggerService | null = null;
