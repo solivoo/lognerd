@@ -1,4 +1,5 @@
 export type LogLevel = 'ERROR' | 'WARN' | 'INFO' | 'DEBUG';
+export type RuntimeEnvironment = 'backend' | 'client';
 
 export interface LoggerConfig {
   level: LogLevel;
@@ -6,6 +7,7 @@ export interface LoggerConfig {
   enableFile: boolean;
   filePath?: string;
   environment: 'development' | 'production';
+  runtimeEnvironment: RuntimeEnvironment; // 'backend' o 'client'
   maxFileSize?: number; // en MB
   maxFiles?: number;
 }

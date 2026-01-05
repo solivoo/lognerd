@@ -77,9 +77,10 @@ Puedes configurar lognerd completamente mediante variables de entorno. Esto es i
 | `LOGNERD_MAX_FILE_SIZE` | `VITE_LOGNERD_MAX_FILE_SIZE` | Tamaño máximo del archivo en MB | Número entero | `10` |
 | `LOGNERD_MAX_FILES` | `VITE_LOGNERD_MAX_FILES` | Número máximo de archivos rotados | Número entero | `5` |
 
-**Ejemplo para Node.js/Next.js:**
+**Ejemplo para Node.js/Next.js (Backend):**
 ```bash
 # .env
+LOG_ENVIRONMENT=B
 LOGNERD_LEVEL=INFO
 LOGNERD_ENVIRONMENT=development
 LOGNERD_ENABLE_CONSOLE=true
@@ -89,16 +90,14 @@ LOGNERD_MAX_FILE_SIZE=10
 LOGNERD_MAX_FILES=5
 ```
 
-**Ejemplo para Vite:**
+**Ejemplo para Vite (Cliente/Navegador):**
 ```bash
 # .env
+VITE_LOG_ENVIRONMENT=C
 VITE_LOGNERD_LEVEL=INFO
 VITE_LOGNERD_ENVIRONMENT=development
 VITE_LOGNERD_ENABLE_CONSOLE=true
-VITE_LOGNERD_ENABLE_FILE=true
-VITE_LOGNERD_FILE_PATH=./logs/app.log
-VITE_LOGNERD_MAX_FILE_SIZE=10
-VITE_LOGNERD_MAX_FILES=5
+# VITE_LOGNERD_ENABLE_FILE se ignora en cliente (siempre false)
 ```
 
 **Ejemplo para producción (Vite):**

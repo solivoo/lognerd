@@ -3,6 +3,43 @@ import { LoggerConfig, LogLevel } from './logger.types';
 // Detectar si estamos en Node.js o en el navegador
 const isNode = typeof process !== 'undefined' && process.versions?.node !== undefined;
 
+/**
+ * Detecta el entorno de ejecución (backend o client)
+ * Basado en LOG_ENVIRONMENT o detección automática
+ */
+const detectRuntimeEnvironment = (): 'backend' | 'client' => {
+  // Intentar leer LOG_ENVIRONMENT desde variables de entorno
+  let envValue: string | undefined;
+  
+  try {
+    if (typeof process !== 'undefined' && process.env) {
+      envValue = process.env.LOG_ENVIRONMENT || process.env.VITE_LOG_ENVIRONMENT;
+    }
+  } catch {
+    // process no disponible
+  }
+  
+  // Si no está en process.env, intentar desde Vite
+  if (!envValue && !isNode) {
+    envValue = getViteEnv('LOG_ENVIRONMENT');
+  }
+  
+  // Procesar el valor
+  if (envValue) {
+    const upperValue = envValue.trim().toUpperCase();
+    if (upperValue === 'B' || upperValue === 'BACKEND') {
+      return 'backend';
+    }
+    if (upperValue === 'C' || upperValue === 'CLIENT' || upperValue === 'CLIENTE') {
+      return 'client';
+    }
+  }
+  
+  // Detección automática: si estamos en Node.js, asumimos backend
+  // Si no, asumimos client (navegador)
+  return isNode ? 'backend' : 'client';
+};
+
 // Función para obtener variables de entorno de Vite en tiempo de ejecución
 // Vite inyecta import.meta.env en tiempo de compilación
 const getViteEnv = (key: string): string | undefined => {
@@ -207,6 +244,7 @@ const defaultConfig: LoggerConfig = {
   enableFile: true,
   filePath: getDefaultFilePath(),
   environment: 'development',
+  runtimeEnvironment: 'backend', // Se sobrescribirá con detectRuntimeEnvironment()
   maxFileSize: 10, // 10MB
   maxFiles: 5,
 };
@@ -214,15 +252,42 @@ const defaultConfig: LoggerConfig = {
 export const createLoggerConfig = (
   customConfig?: Partial<LoggerConfig>
 ): LoggerConfig => {
+  // Detectar el entorno de ejecución primero
+  const runtimeEnv = detectRuntimeEnvironment();
+  
   // Primero leer desde variables de entorno
   const envConfig = getConfigFromEnv();
   
   // Combinar: defaults -> env -> customConfig (customConfig tiene prioridad)
   const config: LoggerConfig = {
     ...defaultConfig,
+    runtimeEnvironment: runtimeEnv,
     ...envConfig,
     ...customConfig,
   };
+  
+  // Validar y ajustar según el entorno de ejecución
+  if (config.runtimeEnvironment === 'client') {
+    // En cliente (navegador), deshabilitar escritura de archivos
+    if (config.enableFile) {
+      console.warn(
+        '[lognerd] ⚠️ LOG_ENVIRONMENT está configurado para CLIENT (C). ' +
+        'La escritura de archivos está deshabilitada en el navegador. ' +
+        'Configure LOG_ENVIRONMENT=B para backend si necesita escribir archivos.'
+      );
+      config.enableFile = false;
+    }
+  } else if (config.runtimeEnvironment === 'backend') {
+    // En backend, asegurar que tenemos acceso a fs
+    if (config.enableFile && !isNode) {
+      console.error(
+        '[lognerd] ❌ ERROR: LOG_ENVIRONMENT está configurado para BACKEND (B) ' +
+        'pero el código se está ejecutando en el navegador. ' +
+        'Configure LOG_ENVIRONMENT=C para cliente o corrija su configuración.'
+      );
+      config.enableFile = false;
+    }
+  }
 
   // En producción, deshabilitar consola pero mantener archivo
   // (solo si no se especificó explícitamente enableConsole)

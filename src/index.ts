@@ -62,5 +62,5 @@ export const logger = {
 
 // Exportar tipos y clases
 export { LoggerService };
-export type { LoggerConfig, LogLevel };
+export type { LoggerConfig, LogLevel, RuntimeEnvironment };
 export { createLoggerConfig };

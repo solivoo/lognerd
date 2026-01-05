@@ -36,8 +36,20 @@ class LoggerService {
       return;
     }
     
+    // Validar que estamos en backend antes de escribir
+    if (this.config.runtimeEnvironment === 'client') {
+      // No intentar escribir en cliente
+      return;
+    }
+    
     // En el navegador, no podemos escribir archivos
     if (!isNode || !fs) {
+      if (this.config.runtimeEnvironment === 'backend') {
+        console.error(
+          '[lognerd] ❌ ERROR: Intento de escribir archivo en backend pero fs no está disponible. ' +
+          'Verifique que LOG_ENVIRONMENT=B esté configurado correctamente.'
+        );
+      }
       return;
     }
     
@@ -62,7 +74,7 @@ class LoggerService {
       const stats = fs.statSync(this.config.filePath);
       const fileSizeInMB = stats.size / (1024 * 1024);
       
-      if (fileSizeInMB >= this.config.maxFileSize && path) {
+      if (fileSizeInMB >= this.config.maxFileSize && path && fs) {
         const logDir = path.dirname(this.config.filePath);
         const logFileName = path.basename(this.config.filePath, '.log');
         const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
@@ -70,12 +82,10 @@ class LoggerService {
         const rotatedFilePath = path.join(logDir, rotatedFileName);
         
         // Mover archivo actual
-        if (fs) {
-          fs.renameSync(this.config.filePath, rotatedFilePath);
-          
-          // Limpiar archivos antiguos
-          this.cleanOldLogFiles(logDir, logFileName);
-        }
+        fs.renameSync(this.config.filePath, rotatedFilePath);
+        
+        // Limpiar archivos antiguos
+        this.cleanOldLogFiles(logDir, logFileName);
       }
     } catch (error) {
       // Ignorar errores de rotación
@@ -90,11 +100,14 @@ class LoggerService {
     try {
       const files = fs.readdirSync(logDir)
         .filter(file => file.startsWith(logFileName) && file.endsWith('.log'))
-        .map(file => ({
-          name: file,
-          path: path.join(logDir, file),
-          time: fs.statSync(path.join(logDir, file)).mtime.getTime(),
-        }))
+        .map(file => {
+          const filePath = path.join(logDir, file);
+          return {
+            name: file,
+            path: filePath,
+            time: fs.statSync(filePath).mtime.getTime(),
+          };
+        })
         .sort((a, b) => b.time - a.time);
       
       // Eliminar archivos que excedan el máximo
