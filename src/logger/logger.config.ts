@@ -1,6 +1,39 @@
 import { LoggerConfig, LogLevel } from './logger.types';
-import * as fs from 'fs';
-import * as path from 'path';
+
+// Detectar si estamos en Node.js o en el navegador
+const isNode = typeof process !== 'undefined' && process.versions?.node !== undefined;
+
+// Función para obtener variables de entorno de Vite en tiempo de ejecución
+// Vite inyecta import.meta.env en tiempo de compilación
+const getViteEnv = (key: string): string | undefined => {
+  try {
+    // Acceder a import.meta.env de forma segura
+    // En Vite, esto se reemplaza en tiempo de compilación
+    const meta = (globalThis as any).__VITE_IMPORT_META__ || 
+                 (typeof (globalThis as any).import !== 'undefined' ? 
+                  (globalThis as any).import.meta : null);
+    
+    if (meta && meta.env && meta.env[key] !== undefined) {
+      return String(meta.env[key]);
+    }
+  } catch {
+    // Ignorar errores - no estamos en Vite o no está disponible
+  }
+  return undefined;
+};
+
+// Importaciones condicionales solo para Node.js
+let fs: typeof import('fs') | null = null;
+let path: typeof import('path') | null = null;
+
+if (isNode) {
+  try {
+    fs = require('fs');
+    path = require('path');
+  } catch {
+    // Ignorar si no están disponibles
+  }
+}
 
 /**
  * Lee una variable de entorno y la convierte a boolean
@@ -42,13 +75,46 @@ const getEnvLogLevel = (key: string, defaultValue: LogLevel): LogLevel => {
  * Vite solo expone variables que comienzan con VITE_ al código del cliente
  */
 const getEnvValue = (key: string): string | undefined => {
-  // Primero intentar con prefijo VITE_ (para Vite)
-  const viteKey = `VITE_${key}`;
-  if (process.env[viteKey] !== undefined) {
-    return process.env[viteKey];
+  // Verificar si process existe antes de usarlo (evita errores en navegador)
+  let processEnv: NodeJS.ProcessEnv | undefined;
+  try {
+    if (typeof process !== 'undefined' && process.env) {
+      processEnv = process.env;
+    }
+  } catch {
+    // process no está disponible (estamos en navegador)
+    processEnv = undefined;
   }
-  // Luego intentar sin prefijo (para Node.js y otros entornos)
-  return process.env[key];
+  
+  // Para Node.js
+  if (isNode && processEnv) {
+    // Primero intentar con prefijo VITE_ (por si acaso)
+    const viteKey = `VITE_${key}`;
+    if (processEnv[viteKey] !== undefined) {
+      return processEnv[viteKey];
+    }
+    // Luego intentar sin prefijo
+    if (processEnv[key] !== undefined) {
+      return processEnv[key];
+    }
+  }
+  
+  // Para Vite (navegador) - intentar obtener variables de Vite
+  // Solo si no estamos en Node.js
+  if (!isNode) {
+    const viteKey = `VITE_${key}`;
+    const viteValue = getViteEnv(viteKey);
+    if (viteValue !== undefined) {
+      return String(viteValue);
+    }
+    // También intentar sin prefijo
+    const directValue = getViteEnv(key);
+    if (directValue !== undefined) {
+      return String(directValue);
+    }
+  }
+  
+  return undefined;
 };
 
 /**
@@ -65,9 +131,22 @@ const getConfigFromEnv = (): Partial<LoggerConfig> => {
   }
 
   // Entorno (compatible con NODE_ENV, LOGNERD_ENVIRONMENT y VITE_LOGNERD_ENVIRONMENT)
+  let nodeEnv: string | undefined;
+  try {
+    if (!isNode) {
+      // En el navegador, intentar obtener de Vite
+      nodeEnv = getViteEnv('MODE') || getViteEnv('NODE_ENV');
+    } else if (typeof process !== 'undefined' && process.env) {
+      nodeEnv = process.env.NODE_ENV;
+    }
+  } catch {
+    // Ignorar errores si process no está disponible
+    nodeEnv = undefined;
+  }
+  
   const environment = (
     getEnvValue('LOGNERD_ENVIRONMENT') || 
-    process.env.NODE_ENV || 
+    nodeEnv || 
     'development'
   ) as 'development' | 'production';
   if (environment === 'development' || environment === 'production') {
@@ -107,11 +186,26 @@ const getConfigFromEnv = (): Partial<LoggerConfig> => {
   return config;
 };
 
+// Obtener el directorio de trabajo (solo en Node.js)
+const getDefaultFilePath = (): string => {
+  if (isNode && path) {
+    try {
+      if (typeof process !== 'undefined' && process.cwd) {
+        return path.join(process.cwd(), 'logs', 'app.log');
+      }
+    } catch {
+      // Fallback si process.cwd() no está disponible
+    }
+  }
+  // En el navegador, no podemos escribir archivos, así que retornamos una ruta relativa
+  return './logs/app.log';
+};
+
 const defaultConfig: LoggerConfig = {
   level: 'INFO',
   enableConsole: true,
   enableFile: true,
-  filePath: path.join(process.cwd(), 'logs', 'app.log'),
+  filePath: getDefaultFilePath(),
   environment: 'development',
   maxFileSize: 10, // 10MB
   maxFiles: 5,
@@ -137,12 +231,22 @@ export const createLoggerConfig = (
     config.enableFile = true;
   }
   
-  // Asegurar que el directorio de logs existe
-  if (config.enableFile && config.filePath) {
-    const logDir = path.dirname(config.filePath);
-    if (!fs.existsSync(logDir)) {
-      fs.mkdirSync(logDir, { recursive: true });
+  // Asegurar que el directorio de logs existe (solo en Node.js)
+  if (config.enableFile && config.filePath && isNode && fs && path) {
+    try {
+      const logDir = path.dirname(config.filePath);
+      if (!fs.existsSync(logDir)) {
+        fs.mkdirSync(logDir, { recursive: true });
+      }
+    } catch (error) {
+      // En el navegador, no podemos crear directorios, así que deshabilitamos el archivo
+      if (!isNode) {
+        config.enableFile = false;
+      }
     }
+  } else if (!isNode && config.enableFile) {
+    // En el navegador, deshabilitar escritura en archivo por defecto
+    config.enableFile = false;
   }
   
   return config;

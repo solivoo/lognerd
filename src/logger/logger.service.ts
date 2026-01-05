@@ -1,7 +1,21 @@
-import * as fs from 'fs';
-import * as path from 'path';
 import { LoggerConfig, LogLevel, LogEntry } from './logger.types';
 import { formatConsoleMessage, formatFileMessage } from './logger.utils';
+
+// Detectar si estamos en Node.js
+const isNode = typeof process !== 'undefined' && process.versions?.node !== undefined;
+
+// Importaciones condicionales solo para Node.js
+let fs: typeof import('fs') | null = null;
+let path: typeof import('path') | null = null;
+
+if (isNode) {
+  try {
+    fs = require('fs');
+    path = require('path');
+  } catch {
+    // Ignorar si no están disponibles
+  }
+}
 
 class LoggerService {
   private config: LoggerConfig;
@@ -22,6 +36,11 @@ class LoggerService {
       return;
     }
     
+    // En el navegador, no podemos escribir archivos
+    if (!isNode || !fs) {
+      return;
+    }
+    
     try {
       const message = formatFileMessage(entry) + '\n';
       fs.appendFileSync(this.config.filePath, message, 'utf8');
@@ -35,7 +54,7 @@ class LoggerService {
   }
   
   private rotateLogFileIfNeeded(): void {
-    if (!this.config.filePath || !this.config.maxFileSize) {
+    if (!this.config.filePath || !this.config.maxFileSize || !isNode || !fs || !path) {
       return;
     }
     
@@ -43,7 +62,7 @@ class LoggerService {
       const stats = fs.statSync(this.config.filePath);
       const fileSizeInMB = stats.size / (1024 * 1024);
       
-      if (fileSizeInMB >= this.config.maxFileSize) {
+      if (fileSizeInMB >= this.config.maxFileSize && path) {
         const logDir = path.dirname(this.config.filePath);
         const logFileName = path.basename(this.config.filePath, '.log');
         const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
@@ -51,10 +70,12 @@ class LoggerService {
         const rotatedFilePath = path.join(logDir, rotatedFileName);
         
         // Mover archivo actual
-        fs.renameSync(this.config.filePath, rotatedFilePath);
-        
-        // Limpiar archivos antiguos
-        this.cleanOldLogFiles(logDir, logFileName);
+        if (fs) {
+          fs.renameSync(this.config.filePath, rotatedFilePath);
+          
+          // Limpiar archivos antiguos
+          this.cleanOldLogFiles(logDir, logFileName);
+        }
       }
     } catch (error) {
       // Ignorar errores de rotación
@@ -62,7 +83,7 @@ class LoggerService {
   }
   
   private cleanOldLogFiles(logDir: string, logFileName: string): void {
-    if (!this.config.maxFiles) {
+    if (!this.config.maxFiles || !isNode || !fs || !path) {
       return;
     }
     
