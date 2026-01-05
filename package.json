@@ -1,6 +1,6 @@
 {
   "name": "lognerd",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Sistema de logging con colores y escritura a archivo",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
