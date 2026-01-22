@@ -101,11 +101,11 @@ class LoggerService {
       const files = fs.readdirSync(logDir)
         .filter(file => file.startsWith(logFileName) && file.endsWith('.log'))
         .map(file => {
-          const filePath = path.join(logDir, file);
+          const filePath = path && path.join(logDir, file);
           return {
             name: file,
             path: filePath,
-            time: fs.statSync(filePath).mtime.getTime(),
+            time: fs && filePath ? fs.statSync(filePath).mtime.getTime() : 0,
           };
         })
         .sort((a, b) => b.time - a.time);
@@ -113,7 +113,9 @@ class LoggerService {
       // Eliminar archivos que excedan el máximo
       if (files.length > this.config.maxFiles) {
         files.slice(this.config.maxFiles).forEach(file => {
-          fs.unlinkSync(file.path);
+          if (fs && file.path) {
+            fs.unlinkSync(file.path);
+          }
         });
       }
     } catch (error) {
@@ -135,7 +137,20 @@ class LoggerService {
     
     // Escribir en consola (si está habilitado)
     if (this.config.enableConsole) {
-      console.log(formatConsoleMessage(level, message, data));
+      // En web, usar console nativo con objetos expandibles
+      if (!isNode) {
+        const levelTag = `[${level}]`;
+        
+        // Usar console.log con múltiples parámetros para mantener objetos expandibles
+        if (data !== undefined) {
+          console.log(`${levelTag} ${message}`, data);
+        } else {
+          console.log(`${levelTag} ${message}`);
+        }
+      } else {
+        // En Node.js, usar el formato con colores
+        console.log(formatConsoleMessage(level, message, data));
+      }
     }
     
     // Escribir en archivo (siempre, incluso en producción)
