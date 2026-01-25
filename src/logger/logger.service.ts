@@ -137,15 +137,24 @@ class LoggerService {
     
     // Escribir en consola (si está habilitado)
     if (this.config.enableConsole) {
-      // En web, usar console nativo con objetos expandibles
+      // En web, usar console nativo con objetos expandibles y colores
       if (!isNode) {
-        const levelTag = `[${level}]`;
+        // Colores para cada nivel en consola web
+        const webColors = {
+          ERROR: 'color: #ff4444;',
+          WARN: 'color: #ffaa00;',
+          INFO: 'color: #00aaff;',
+          DEBUG: 'color: #aa00ff;',
+        };
         
-        // Usar console.log con múltiples parámetros para mantener objetos expandibles
+        const levelTag = `[${level}]`;
+        const colorStyle = webColors[level] || '';
+        
+        // Usar console.log con %c para aplicar colores y mantener objetos expandibles
         if (data !== undefined) {
-          console.log(`${levelTag} ${message}`, data);
+          console.log(`%c${levelTag}%c ${message}`, colorStyle, '', data);
         } else {
-          console.log(`${levelTag} ${message}`);
+          console.log(`%c${levelTag}%c ${message}`, colorStyle, '');
         }
       } else {
         // En Node.js, usar el formato con colores
