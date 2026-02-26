@@ -1,6 +1,8 @@
 # lognerd
 
-Sistema de logging con colores y escritura a archivo para **Node.js (Backend)** y **Navegador (Frontend)**. Desarrollado con TypeScript y diseñado para ser fácil de usar y configurar. Compatible con Vite, Next.js y otros entornos.
+Sistema de logging universal con colores y escritura a archivo para **Node.js (Backend)** y **Navegador (Frontend)**. Desarrollado con TypeScript y diseñado para ser fácil de usar y configurar. Compatible con Vite, Webpack, Next.js y otros entornos.
+
+> **Isomórfico por diseño:** los módulos de Node.js (`fs`, `path`) se cargan mediante `await import()` solo en entorno servidor. En el navegador, el logger usa exclusivamente `console.log`, `console.warn` y `console.error` — sin importar módulos de Node.js.
 
 ## 🚀 Instalación
 
@@ -84,13 +86,14 @@ Esta variable determina si el código se ejecuta en **backend** (Node.js) o **cl
 
 - **`LOG_ENVIRONMENT=B`** o **`LOG_ENVIRONMENT=BACKEND`**: Para backend (Node.js)
   - ✅ Permite escritura de archivos
-  - ✅ Usa `fs` y `path` de Node.js
+  - ✅ Carga `fs` y `path` dinámicamente con `await import()`
   - ✅ Escritura de logs en archivos locales
 
 - **`LOG_ENVIRONMENT=C`** o **`LOG_ENVIRONMENT=CLIENT`**: Para cliente (navegador)
   - ✅ Deshabilita escritura de archivos automáticamente
-  - ✅ Solo muestra logs en consola del navegador
-  - ✅ Compatible con Vite y otros bundlers
+  - ✅ Solo usa `console.log`, `console.warn`, `console.error` del navegador
+  - ✅ Nunca importa módulos de Node.js (`fs`, `path`)
+  - ✅ Compatible con Vite, Webpack y otros bundlers
 
 **Detección automática:**
 Si no se configura `LOG_ENVIRONMENT`, se detecta automáticamente:
@@ -193,7 +196,10 @@ NODE_ENV=production LOGNERD_LEVEL=WARN
 
 ## 🎨 Características
 
-- ✅ **Soporte Backend y Frontend**: Funciona en Node.js y navegador
+- ✅ **Isomórfico (Node.js + Browser)**: Funciona en backend y navegador con la misma API
+- ✅ **Importaciones dinámicas**: `fs` y `path` se cargan con `await import()` solo en Node.js
+- ✅ **Browser-safe**: En navegador solo usa `console.log`/`console.warn`/`console.error`, sin importar módulos de Node
+- ✅ **Tree-shaking**: `"sideEffects": false` y campo `"browser"` en `package.json` para Vite/Webpack
 - ✅ **Niveles de log**: ERROR, WARN, INFO, DEBUG
 - ✅ **Colores en consola** para desarrollo (rojo para ERROR, amarillo para WARN, cyan para INFO, magenta para DEBUG)
 - ✅ **Escritura automática a archivo** (solo en backend, deshabilitada automáticamente en cliente)
@@ -205,7 +211,7 @@ NODE_ENV=production LOGNERD_LEVEL=WARN
 - ✅ **Patrón Singleton**: Uso directo sin crear instancias
 - ✅ **TypeScript** con tipos completos
 - ✅ **Sin dependencias externas** (solo usa módulos nativos)
-- ✅ **Compatible con Vite**: Soporte para variables `VITE_*`
+- ✅ **Compatible con Vite y Webpack**: Soporte para variables `VITE_*` y tree-shaking
 
 ## 📝 Ejemplos
 
@@ -328,11 +334,49 @@ Cuando un archivo de log alcanza el tamaño máximo configurado (`maxFileSize`),
 
 **Nota:** La rotación de archivos solo funciona en **backend** (Node.js). En **cliente** (navegador), la escritura de archivos está deshabilitada.
 
+## 📦 Compatibilidad con Bundlers
+
+lognerd está diseñado para funcionar correctamente con bundlers modernos sin configuración adicional.
+
+### Vite / Webpack / Rollup
+
+El `package.json` incluye:
+
+```json
+{
+  "sideEffects": false,
+  "browser": {
+    "fs": false,
+    "path": false
+  }
+}
+```
+
+- **`sideEffects: false`** permite que el bundler elimine código no utilizado (tree-shaking).
+- **`browser`** indica a los bundlers que reemplacen `fs` y `path` con módulos vacíos en builds de navegador.
+
+### Arquitectura interna
+
+```
+┌─────────────────────────────────────────────────┐
+│                  logger.node.ts                  │
+│  Carga dinámica: await import('fs'/'path')       │
+│  Detección: typeof globalThis.window             │
+├────────────────────┬────────────────────────────┤
+│  Node.js (server)  │  Browser (client)          │
+│  ✅ fs, path       │  ❌ fs, path (nunca carga) │
+│  ✅ console.*      │  ✅ console.* únicamente   │
+│  ✅ file write     │  ❌ file write             │
+└────────────────────┴────────────────────────────┘
+```
+
+No necesitas configurar aliases, polyfills ni externals. Solo importa y usa.
+
 ## 🐛 Solución de Problemas
 
 ### Error: "process is not defined"
-- **Causa**: El código se está ejecutando en el navegador sin configurar `LOG_ENVIRONMENT=C`
-- **Solución**: Agrega `VITE_LOG_ENVIRONMENT=C` en tu archivo `.env` para Vite, o `LOG_ENVIRONMENT=C` para otros entornos
+- **Causa**: Algunos bundlers eliminan `process` por completo en builds de navegador
+- **Solución**: lognerd detecta la ausencia de `process` automáticamente y funciona solo con `console.*`. Si aún ves este error, agrega `VITE_LOG_ENVIRONMENT=C` en tu `.env` para Vite, o configura tu bundler para definir `process.env` como objeto vacío
 
 ### Error: "LOG_ENVIRONMENT está configurado para BACKEND pero se ejecuta en navegador"
 - **Causa**: `LOG_ENVIRONMENT=B` está configurado pero el código corre en el navegador
